@@ -16,7 +16,7 @@ PHASE2_REDML_SCRIPT="${SCRIPT_DIR}/call_red_ml_v3.sh"
 PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v4.sh"
 
 # Phase 3 Scripts (Master Site Discovery - REWORKED)
-PHASE3_SCRIPT="${SCRIPT_DIR}/03_phase3_master_site_discovery_v3.sh"
+PHASE3_SCRIPT="${SCRIPT_DIR}/03_phase3_master_site_discovery_v4.sh"
 
 # Phase 4 Scripts (Per-Cell Quantification & Filter - REWORKED)
 PHASE4_SCRIPT="${SCRIPT_DIR}/04_per_cell_type_quantification_and_filter.sh"
