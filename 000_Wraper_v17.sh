@@ -13,7 +13,7 @@ PHASE2_CHUNK_PREP_SCRIPT="${SCRIPT_DIR}/02_index_pseudobamfiles_v2.sh"
 
 # Phase 2 Scripts (RNA Editing Calling)
 PHASE2_REDML_SCRIPT="${SCRIPT_DIR}/call_red_ml_v3.sh"
-PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v3.sh"
+PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v4.sh"
 
 # Phase 3 Scripts (Master Site Discovery - REWORKED)
 PHASE3_SCRIPT="${SCRIPT_DIR}/03_phase3_master_site_discovery_v2.sh"
