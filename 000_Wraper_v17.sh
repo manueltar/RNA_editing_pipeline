@@ -19,13 +19,7 @@ PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v4.sh"
 PHASE3_SCRIPT="${SCRIPT_DIR}/03_phase3_master_site_discovery_v5.sh"
 
 # Phase 4 Scripts (Per-Cell Quantification & Filter - REWORKED)
-PHASE4_SCRIPT="${SCRIPT_DIR}/04_per_cell_type_quantification_and_filter_v2.sh"
-
-# Phase 5 Scripts (Final Aggregation)
-PHASE5_SCRIPT="${SCRIPT_DIR}/05_final_aggregation.sh" # <--- UPDATED SCRIPT NAME
-
-# Phase 6 Scripts (Trait Normalization - NEW)
-PHASE6_SCRIPT="${SCRIPT_DIR}/06_trait_normalization.sh" # <--- NEW SCRIPT
+PHASE4_SCRIPT="${SCRIPT_DIR}/04_per_cell_type_quantification_and_filter_v3.sh"
 
 # --- Array Size Configuration (31 BAMs per individual) ---
 ARRAY_SIZE=31
@@ -99,29 +93,5 @@ JOB_ID_P4=$(sbatch \
     --job-name=P4_Quant_Filter \
     ${PHASE4_SCRIPT} | awk '{print $4}')
 echo "Submitted Phase 4 Job ID: ${JOB_ID_P4}"
-
-# --------------------------------------------------------------------------
-# PHASE 5: FINAL AGGREGATION (Serial Job)
-# --------------------------------------------------------------------------
-
-# P5: Aggregates the P4 quantification matrix into gene-level AvgER traits.
-echo "Submitting Phase 5: Final Aggregation (Serial Job)"
-JOB_ID_P5=$(sbatch \
-    --dependency=afterok:${JOB_ID_P4} \
-    --job-name=P5_Aggregation \
-    ${PHASE5_SCRIPT} | awk '{print $4}') # <--- SCRIPT NAME CORRECTED HERE
-echo "Submitted Phase 5 Job ID: ${JOB_ID_P5}"
-
-# --------------------------------------------------------------------------
-# PHASE 6: TRAIT NORMALIZATION (Serial Job - NEW)
-# --------------------------------------------------------------------------
-
-# P6: Applies Inverse Normal Transformation (INT) to the gene-level AvgER traits.
-echo "Submitting Phase 6: Trait Normalization (Serial Job)"
-JOB_ID_P6=$(sbatch \
-    --dependency=afterok:${JOB_ID_P5} \
-    --job-name=P6_Normalization \
-    ${PHASE6_SCRIPT} | awk '{print $4}') # <--- NEW DEPENDENT JOB
-echo "Submitted Phase 6 Job ID: ${JOB_ID_P6}"
 
 echo "--- All jobs submitted. Final job ID: ${JOB_ID_P6} ---"
