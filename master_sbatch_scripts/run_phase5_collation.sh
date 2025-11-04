@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=phase5_collation
+#SBATCH --job-name=phase5_edQTL_collation # Updated job name
 #SBATCH --mem=128G         # IMPORTANT: Increased memory (128GB) is necessary for loading 6000 files into a single matrix. Adjust this if your cluster needs more or less.
 #SBATCH --time=06:00:00    # Increased time limit for heavy I/O and processing
 #SBATCH --cpus-per-task=8  # Use multiple cores for faster processing
@@ -11,19 +11,19 @@
 # Directory where all 6000 individual Phase 4 files are located
 INPUT_DIR="./phase4_output_matrices"
 # Directory where the single final Phase 5 matrix will be saved
-OUTPUT_DIR="./phase5_eQTL_features"
+OUTPUT_DIR="./phase5_edQTL_features" # Updated directory name
 # The Python script to execute (which handles the collation and selection)
 SCRIPT="./collate_and_select_phase5.py"
 
 # Define the final output file name
-FINAL_OUTPUT_FILE="${OUTPUT_DIR}/eQTL_features_all_genes_all_celltypes_p5.tsv"
+FINAL_OUTPUT_FILE="${OUTPUT_DIR}/edQTL_features_all_genes_all_celltypes_p5.tsv" # Updated file name
 
 # Create output directories if they don't exist
 mkdir -p $OUTPUT_DIR
 mkdir -p logs
 
 # --- Execution ---
-echo "--- Starting Phase 5: Population Collation and Feature Selection ---"
+echo "--- Starting Phase 5: Population Collation and edQTL Feature Selection ---" # Updated description
 echo "Reading files from: ${INPUT_DIR}"
 echo "Output will be saved to: ${FINAL_OUTPUT_FILE}"
 
@@ -37,10 +37,10 @@ python3 ${SCRIPT} \
     --output_file ${FINAL_OUTPUT_FILE}
 
 if [ $? -eq 0 ]; then
-    echo "SUCCESS: Phase 5 Collation completed."
-    echo "The final eQTL feature matrix is: ${FINAL_OUTPUT_FILE}"
+    echo "SUCCESS: Phase 5 edQTL Collation completed." # Updated description
+    echo "The final edQTL feature matrix is: ${FINAL_OUTPUT_FILE}"
     # Creates a flag file for the master pipeline script to check before proceeding to Phase 6
     touch ${OUTPUT_DIR}/phase5_success.flag
 else
-    echo "ERROR: Phase 5 Collation failed. Check logs/phase5_collation_${SLURM_JOB_ID}.err"
+    echo "ERROR: Phase 5 edQTL Collation failed. Check logs/phase5_collation_${SLURM_JOB_ID}.err" # Updated description
 fi

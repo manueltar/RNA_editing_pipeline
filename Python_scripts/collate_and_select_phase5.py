@@ -6,7 +6,7 @@ import glob
 import sys
 import os
 
-# This script implements the definitive Li et al. (2022) eQTL feature selection strategy 
+# This script implements the definitive Li et al. (2022) edQTL feature selection strategy 
 # by collating data across ALL individuals and then selecting the most active site 
 # per (Gene, CellType) feature based on the population median of raw editing ratios.
 
@@ -102,27 +102,27 @@ def run_phase5_collation_and_selection(args):
     final_features_df = final_features_df.drop(columns=['SiteID', 'Phase3_Gene', 'CellType', 'Median_Raw_ER_Population'])
     
     # Set the FeatureID as the index. The columns are still Individual IDs.
-    final_eQTL_matrix = final_features_df.set_index('FeatureID')
+    final_edQTL_matrix = final_features_df.set_index('FeatureID')
     
-    # The final eQTL matrix must have Features as rows and Individuals as columns (N_Features x N_Individuals)
-    final_eQTL_matrix = final_eQTL_matrix.T.T # Transpose twice to keep the structure clear
+    # The final edQTL matrix must have Features as rows and Individuals as columns (N_Features x N_Individuals)
+    final_edQTL_matrix = final_edQTL_matrix.T.T # Transpose twice to keep the structure clear
     
     # Ensure the index is named correctly
-    final_eQTL_matrix.index.name = 'FeatureID'
+    final_edQTL_matrix.index.name = 'FeatureID'
 
     # 4. Final Output
-    print(f"Final eQTL Feature Matrix shape (Features x Individuals): {final_eQTL_matrix.shape}")
+    print(f"Final edQTL Feature Matrix shape (Features x Individuals): {final_edQTL_matrix.shape}")
     print(f"Saving final matrix to: {args.output_file}")
     
     # Save the matrix. The values are the raw editing ratios, ready for external INT in Phase 6.
-    final_eQTL_matrix.to_csv(args.output_file, sep='\t', index=True, na_rep='NA')
+    final_edQTL_matrix.to_csv(args.output_file, sep='\t', index=True, na_rep='NA')
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Phase 5: Population-Level Collation and Feature Selection for eQTL mapping (Li Strategy).")
+    parser = argparse.ArgumentParser(description="Phase 5: Population-Level Collation and Feature Selection for edQTL mapping (Li Strategy).")
     parser.add_argument("--input_dir", required=True, help="Directory containing all Phase 4 output matrices.")
     parser.add_argument("--file_pattern", default="*_final_editing_matrix_p4.tsv", help="File pattern to match Phase 4 matrices.")
-    parser.add_argument("--output_file", required=True, help="Path to save the single, final eQTL feature matrix.")
+    parser.add_argument("--output_file", required=True, help="Path to save the single, final edQTL feature matrix.")
     args = parser.parse_args()
     
     try:
