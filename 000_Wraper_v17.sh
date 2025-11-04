@@ -20,7 +20,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 ARRAY_SIZE=31
 
 # 6. Pipeline Scripts - Ensure these names match the local files
-SETUP_MASK_SCRIPT="${SCRIPT_DIR}/01_setup_references_mask_only_v2.sh"
+SETUP_MASK_SCRIPT="${SCRIPT_DIR}/01_setup_references_mask_only_v3.sh"
 PHASE2_CHUNK_PREP_SCRIPT="${SCRIPT_DIR}/02_index_pseudobamfiles_v3.sh"
 PHASE2_REDML_SCRIPT="${SCRIPT_DIR}/call_red_ml_v2.sh"
 PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v3.sh"
