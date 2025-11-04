@@ -11,8 +11,7 @@ import gzip
 import numpy as np
 
 # --- 1. Configuration and Setup ---
-parser = argparse.ArgumentParser(description="Phase 4 (Reworked) v2: Per-Cell Quantification using Phase 3 Matrix as input.")
-# CRITICAL FIX: Renamed argument
+parser = argparse.ArgumentParser(description="Phase 4 (Reworked) v3: Per-Cell Quantification using Phase 3 Matrix with optional annotation filtering.")
 parser.add_argument("--phase3_matrix", required=True, help="Input matrix from Phase 3 (INDIVIDUAL_ID_annotated_raw_matrix.tsv).")
 parser.add_argument("--output_file", required=True, help="Path to save the final cell-type quantification matrix.")
 parser.add_argument("--input_bams_dir", required=True, help="Directory containing the 31 input BAM files.")
@@ -23,6 +22,9 @@ parser.add_argument("--gtf_annotation", required=True, help="Path to the Ensembl
 parser.add_argument("--splice_site_threshold", type=int, default=4, help="Exclude sites within this many bp of a splice junction.")
 parser.add_argument("--min_read_coverage", type=int, default=10, help="Minimum TotalReads required at a site.")
 parser.add_argument("--threads", type=int, default=16, help="Number of threads for parallel processing (optional).")
+# NEW OPTIONAL FILTER ARGUMENTS
+parser.add_argument("--filter_redip_status", type=str, default=None, help="Filter Phase 3 sites by a specific REDIPortal_Status (e.g., 'Known'). Set to None to disable.")
+parser.add_argument("--filter_func_region", type=str, default=None, help="Filter Phase 3 sites by a specific Functional_Region (e.g., 'UTR3'). Set to None to disable.")
 args = parser.parse_args()
 
 BAM_FILES = sorted(glob.glob(os.path.join(args.input_bams_dir, args.bam_pattern)))
@@ -32,10 +34,12 @@ if not BAM_FILES:
 
 # --- 2. Filtering and Annotation Logic (Pysam/GTF Helpers) ---
 
-# --- GTF Splice Junction and VCF Functions (Kept as v1) ---
-# NOTE: load_gtf_splice_junctions, parse_gtf_attributes, parse_gtf_and_get_annotation, check_germline_status
-# These functions are identical to v1 but rely on global GTF_JUNCTION_MAP.
-GTF_JUNCTION_MAP = None # Define global var here
+# Global variable for GTF junctions
+GTF_JUNCTION_MAP = None 
+
+# --- Helper functions (parse_gtf_attributes, load_gtf_splice_junctions, 
+# --- parse_gtf_and_get_annotation, check_germline_status, quantify_site_per_bam) 
+# --- remain structurally the same as v2 but are included here for completeness.
 
 def parse_gtf_attributes(attribute_str: str) -> dict:
     """Parses the attribute column of a GTF file."""
@@ -120,8 +124,6 @@ def check_germline_status(chrom, pos, ref, alt, vcf_path, ind_id):
 
     return is_germline_snp, vcf_status
 
-# --- 3. Quantification Logic (Uses MIN_READ_COVERAGE) ---
-
 def quantify_site_per_bam(chrom, pos, ref, alt, bam_path, min_coverage):
     """Pysam pileup and count bases, applying the MIN_COVERAGE mask."""
     total_reads = 0
@@ -160,27 +162,43 @@ def quantify_site_per_bam(chrom, pos, ref, alt, bam_path, min_coverage):
     }, "PASS"
 
 
-# --- 4. Main Execution and Matrix Construction ---
+# --- 3. Main Execution and Matrix Construction ---
 
 def run_phase4_quantification(args):
-    """Loads Phase 3 matrix, applies global filters, then quantifies per-cell type."""
+    """Loads Phase 3 matrix, applies **optional annotation filters**, applies global QC, then quantifies per-cell type."""
     
     print(f"Loading consensus sites from Phase 3 matrix: {args.phase3_matrix}")
-    # Load Phase 3 Matrix (SiteID is the index)
     phase3_df = pd.read_csv(args.phase3_matrix, sep='\t', index_col='SiteID', comment='#')
+    
+    # --- STEP 1: Apply Optional Annotation Filters ---
+    initial_site_count = len(phase3_df)
+    
+    if args.filter_redip_status and args.filter_redip_status.lower() != 'none':
+        print(f"Filtering by REDIPortal_Status == '{args.filter_redip_status}'")
+        phase3_df = phase3_df[phase3_df['REDIPortal_Status'] == args.filter_redip_status].copy()
+        
+    if args.filter_func_region and args.filter_func_region.lower() != 'none':
+        print(f"Filtering by Functional_Region == '{args.filter_func_region}'")
+        phase3_df = phase3_df[phase3_df['Functional_Region'] == args.filter_func_region].copy()
+        
+    final_site_count = len(phase3_df)
+    print(f"Annotation Filter Summary: Sites reduced from {initial_site_count} to {final_site_count}.")
+    
+    if final_site_count == 0:
+        print("No sites remaining after annotation filtering. Exiting gracefully.")
+        pd.DataFrame().to_csv(args.output_file, sep='\t', index=False)
+        return
+
+
+    # --- STEP 2: Extract Coordinates and Apply Global QC (VCF/SJ) ---
     
     # Extract site components from the index (e.g., 'chr1:10000:A>G')
     site_components = phase3_df.index.to_series().str.split(':', expand=True)
     site_components.columns = ['Chr', 'Pos_str', 'Ref_Alt']
-    
-    # Split the Ref>Alt string
     site_components[['Ref', 'Alt']] = site_components['Ref_Alt'].str.split('>', expand=True)
     site_components['Pos'] = site_components['Pos_str'].astype(int)
-    
-    # Merge components back into the main DF for easier processing
     phase3_df[['Chr', 'Pos', 'Ref', 'Alt']] = site_components[['Chr', 'Pos', 'Ref', 'Alt']]
 
-    # Pre-calculate Global Filter Status for all sites (VCF & SJ Filter)
     print("Applying global VCF and Splice Junction filters...")
     site_annotation = {}
     
@@ -195,7 +213,7 @@ def run_phase4_quantification(args):
         
         # Determine final Global Status
         if is_snp:
-            global_status = vcf_status # GermlineSNP
+            global_status = vcf_status 
         elif gtf_annot['GlobalFilterStatus'].startswith('SJ_Filtered'):
             global_status = gtf_annot['GlobalFilterStatus']
         else:
@@ -205,26 +223,26 @@ def run_phase4_quantification(args):
             'GlobalFilterStatus': global_status,
             'VCF_Status': vcf_status,
             'MinDistToSplice': gtf_annot.get('MinDistToSplice', 9999),
-            # Merge some annotation from phase 3 and QC annotation (MinDist)
+            # Keep original annotation carried from Phase 3
             'Phase3_FunctionalRegion': site.Functional_Region, 
-            'Phase3_Gene': site.Gene 
+            'Phase3_Gene': site.Gene,
+            'Phase3_REDIPortal_Status': site.REDIPortal_Status
         }
         
-    # --- Step 2: Per-Cell Quantification and Matrix Building ---
+    # --- STEP 3: Per-Cell Quantification and Matrix Building ---
     
     standard_cols = ['SiteID', 'Chr', 'Pos', 'Ref', 'Alt', 'GlobalFilterStatus', 
-                     'VCF_Status', 'MinDistToSplice', 'Phase3_FunctionalRegion', 'Phase3_Gene']
+                     'VCF_Status', 'MinDistToSplice', 'Phase3_FunctionalRegion', 'Phase3_Gene', 'Phase3_REDIPortal_Status']
     
     matrix_rows = [] 
     
-    print("Starting per-cell-type quantification...")
+    print("Starting per-cell-type quantification on globally PASS sites...")
 
     for site_id, annot in site_annotation.items():
         # Only process sites that passed global VCF and SJ filters
         if annot['GlobalFilterStatus'] != 'PASS':
             continue
 
-        # Get site coordinates from the annotation dictionary
         site_row = phase3_df.loc[site_id]
         chrom, pos, ref, alt = site_row.Chr, site_row.Pos, site_row.Ref, site_row.Alt
 
@@ -257,10 +275,11 @@ def run_phase4_quantification(args):
     print(f"\nPhase 4 quantification complete. Final matrix size: {len(final_df)} rows.")
 
 
-# --- 5. Main Execution ---
+# --- 4. Main Execution ---
 if __name__ == "__main__":
     try:
         run_phase4_quantification(args)
     except Exception as e:
         print(f"\nFATAL UNCAUGHT ERROR in Phase 4 Quantification: {e}", file=sys.stderr)
         sys.exit(1)
+
