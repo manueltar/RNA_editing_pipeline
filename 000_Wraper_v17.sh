@@ -19,7 +19,7 @@ PHASE2_REDITOOLS_SCRIPT="${SCRIPT_DIR}/call_reditools_v4.sh"
 PHASE3_SCRIPT="${SCRIPT_DIR}/03_phase3_master_site_discovery_v5.sh"
 
 # Phase 4 Scripts (Per-Cell Quantification & Filter - REWORKED)
-PHASE4_SCRIPT="${SCRIPT_DIR}/04_per_cell_type_quantification_and_filter.sh"
+PHASE4_SCRIPT="${SCRIPT_DIR}/04_per_cell_type_quantification_and_filter_v2.sh"
 
 # Phase 5 Scripts (Final Aggregation)
 PHASE5_SCRIPT="${SCRIPT_DIR}/05_final_aggregation.sh" # <--- UPDATED SCRIPT NAME
