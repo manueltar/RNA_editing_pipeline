@@ -12,20 +12,20 @@
 # Set the error file path
 #SBATCH --error=logs/phase7_fastqtl_%j.err
 # Set the partition (adjust this based on your cluster)
-#SBATCH --partition=bigmem       # Use a partition suitable for long, compute-intensive jobs
+#SBATCH --partition=bigmem        # Use a partition suitable for long, compute-intensive jobs
 # Reserve sufficient memory
-#SBATCH --mem=64G                # Sufficient memory for FastQTL
+#SBATCH --mem=64G                 # Sufficient memory for FastQTL
 # Set time limit (adjust as needed)
-#SBATCH --time=48:00:00          # Allow up to 48 hours for the analysis
+#SBATCH --time=48:00:00           # Allow up to 48 hours for the analysis
 # Set parallelization (adjust based on cluster resources)
-#SBATCH --cpus-per-task=16       # Use many cores for maximum parallelization
+#SBATCH --cpus-per-task=16        # Use many cores for maximum parallelization
 #SBATCH --nodes=1
 
 # --- Configuration: Paths from Previous Phases ---
 # Phenotype matrix (INT-normalized editing ratios from Phase 6)
-PHENOTYPE_FILE="./phase6_normalized_edQTL/normalized_edQTL_matrix_p6.tsv"
+PHENOTYPE_FILE="./phase6_normalized_edQTL/edqtl_phenotype_int_p6.tsv" # UPDATED NAME
 # Covariate matrix (PCs, PEER, AEI, Cell Proportions from Phase 6)
-COVARIATE_FILE="./phase6_normalized_edQTL/covariate_matrix_p6.tsv"
+COVARIATE_FILE="./phase6_normalized_edQTL/edqtl_covariate_matrix_p6.tsv" # UPDATED NAME
 
 # --- Configuration: Genotype and Output ---
 # Assumed location of the VCF file (must be indexed, e.g., using bcftools or tabix)
@@ -56,23 +56,23 @@ date | tee ${LOG_FILE}
 # Command to run FastQTL with permutations for empirical P-value calculation
 
 FastQTL \
-    --vcf ${GENOTYPE_FILE} \
-    --bed ${PHENOTYPE_FILE} \
-    --cov ${COVARIATE_FILE} \
-    --output ${FINAL_OUTPUT_FILE} \
-    --window ${CIS_WINDOW_SIZE} \
-    --permute ${PERMUTATIONS} \
-    --threads ${SLURM_CPUS_PER_TASK} \
-    --chunk 1 1   # Run all analysis in one chunk (can be split into array jobs if desired)
+    --vcf ${GENOTYPE_FILE} \
+    --bed ${PHENOTYPE_FILE} \
+    --cov ${COVARIATE_FILE} \
+    --output ${FINAL_OUTPUT_FILE} \
+    --window ${CIS_WINDOW_SIZE} \
+    --permute ${PERMUTATIONS} \
+    --threads ${SLURM_CPUS_PER_TASK} \
+    --chunk 1 1   # Run all analysis in one chunk
 
 if [ $? -eq 0 ]; then
-    echo "SUCCESS: Phase 7 edQTL Mapping completed." | tee -a ${LOG_FILE}
-    echo "Results saved to: ${FINAL_OUTPUT_FILE}" | tee -a ${LOG_FILE}
-    # Create success flag for potential future steps (e.g., meta-analysis or fine-mapping)
-    touch "${OUTPUT_DIR}/phase7_success.flag"
+    echo "SUCCESS: Phase 7 edQTL Mapping completed." | tee -a ${LOG_FILE}
+    echo "Results saved to: ${FINAL_OUTPUT_FILE}" | tee -a ${LOG_FILE}
+    # Create success flag for potential future steps (e.g., meta-analysis or fine-mapping)
+    touch "${OUTPUT_DIR}/phase7_success.flag"
 else
-    echo "ERROR: Phase 7 edQTL Mapping failed. Check logs/phase7_fastqtl_${SLURM_JOB_ID}.err" | tee -a ${LOG_FILE}
-    exit 1
+    echo "ERROR: Phase 7 edQTL Mapping failed. Check logs/phase7_fastqtl_${SLURM_JOB_ID}.err" | tee -a ${LOG_FILE}
+    exit 1
 fi
 
 echo "--- Phase 7 Finished ---"

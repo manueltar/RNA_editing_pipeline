@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# SLURM wrapper for Phase 6: Normalization and Covariate Merge
+# This script applies INT to phenotypes and merges all covariates for FastQTL.
+
+# --- SLURM Directives ---
+#SBATCH --job-name=edQTL_P6_Normalize
+#SBATCH --output=logs/phase6_normalize_%j.out
+#SBATCH --error=logs/phase6_normalize_%j.err
+#SBATCH --partition=medium
+#SBATCH --mem=32G
+#SBATCH --time=04:00:00
+
+# --- Configuration ---
+SCRIPT="./Python_scripts/normalize_and_covariate_phase6.py"
+
+# Input files (Outputs from previous phases)
+INPUT_FEATURES="./phase5_edQTL_features/population_feature_matrix_p5.tsv"
+INPUT_AEI_COVS="./phase6_normalized_edQTL/aei_covariate_matrix_p6a.tsv"
+
+# External Covariates (Assumed to be pre-calculated/available)
+INPUT_COVS_DIR="./input_covariates"
+INPUT_GENOTYPE_PCS="${INPUT_COVS_DIR}/genotype_pcs.tsv"
+INPUT_PEER_FACTORS="${INPUT_COVS_DIR}/peer_factors_k60.tsv" # Assuming 60 factors
+
+# Output directory and files
+OUTPUT_DIR="./phase6_normalized_edQTL"
+FINAL_PHENOTYPE="${OUTPUT_DIR}/edqtl_phenotype_int_p6.tsv"
+FINAL_COVARIATES="${OUTPUT_DIR}/edqtl_covariate_matrix_p6.tsv"
+
+# --- Setup ---
+mkdir -p ${OUTPUT_DIR}
+mkdir -p logs
+mkdir -p ${INPUT_COVS_DIR} # Ensure placeholder directory exists
+
+# Load necessary modules
+# module load python/3.x anaconda/latest # Example modules
+
+# --- Execution ---
+echo "Starting Phase 6: Normalization and Covariate Merge"
+
+python3 ${SCRIPT} \
+    --input_features ${INPUT_FEATURES} \
+    --input_aei_covariates ${INPUT_AEI_COVS} \
+    --input_genotype_pcs ${INPUT_GENOTYPE_PCS} \
+    --input_peer_factors ${INPUT_PEER_FACTORS} \
+    --output_phenotype ${FINAL_PHENOTYPE} \
+    --output_covariates ${FINAL_COVARIATES}
+
+# --- Success Flag ---
+if [ $? -eq 0 ]; then
+    echo "Phase 6 completed successfully. FastQTL matrices are ready."
+    touch "${OUTPUT_DIR}/phase6_success.flag"
+else
+    echo "Phase 6 FAILED. Check logs for details."
+    exit 1
+fi
