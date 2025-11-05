@@ -1,69 +1,58 @@
 #!/bin/bash
-# 
-# Master Pipeline Script for edQTL Analysis (Phases 5 & 6)
-# This script orchestrates the submission of sequential SLURM jobs, ensuring
-# that the feature selection (P5) completes before normalization (P6) begins.
+#
+# MASTER SLURM WRAPPER: edQTL Statistical Pipeline (Phases 5, 6, 7, 8)
+#
+# This script submits the sequential jobs necessary for final feature selection, 
+# normalization, association mapping, and multiple testing correction.
 
 # --- Configuration ---
-PHASE5_SCRIPT="./run_phase5_collation_v2.sh"
-PHASE6_SCRIPT="./run_phase6_processing.sh"
-
-PHASE5_FLAG="./phase5_edQTL_features/phase5_success.flag"
-PHASE6_FLAG="./phase6_normalized_edQTL/phase6_success.flag"
+PHASE5_SCRIPT="./master_sbatch_scripts/run_phase5_collation.sh"
+PHASE6_SCRIPT="./master_sbatch_scripts/run_phase6_processing.sh"
+PHASE7_SCRIPT="./master_sbatch_scripts/run_phase7_edqtl_mapping.sh"
+PHASE8_SCRIPT="./master_sbatch_scripts/run_phase8_qvalue_filter.sh"
 
 # --- Setup ---
-echo "--- Starting Master edQTL Pipeline ---"
+echo "--- Starting Master edQTL Statistical Pipeline Submission ---"
 
-# --- Phase 5: Collation and Feature Selection ---
-if [ -f "$PHASE5_FLAG" ]; then
-    echo "Phase 5 success flag found. Skipping submission."
-else
-    echo "Submitting Phase 5: edQTL Feature Collation and Selection..."
-    # The submission uses sbatch and captures the Job ID
-    JOBID_P5=$(sbatch --parsable ${PHASE5_SCRIPT})
-    if [ -z "$JOBID_P5" ]; then
-        echo "ERROR: Phase 5 submission failed."
-        exit 1
-    fi
-    echo "Phase 5 submitted with Job ID: $JOBID_P5. Waiting for completion..."
+# --- 1. Phase 5: Feature Selection and Collation ---
+echo "Submitting Phase 5: Collation and Feature Selection..."
+PHASE5_JOB_ID=$(sbatch --parsable ${PHASE5_SCRIPT})
 
-    # Use a loop to check for the success flag
-    while [ ! -f "$PHASE5_FLAG" ]; do
-        # Check job status to ensure it hasn't failed or been canceled
-        if ! squeue -j "$JOBID_P5" &> /dev/null; then
-            echo "ERROR: Phase 5 job $JOBID_P5 failed or completed without success flag. Check logs/ for details."
-            exit 1
-        fi
-        sleep 60 # Wait for 60 seconds before checking again
-    done
-    echo "Phase 5 completed successfully."
+if [ -z "${PHASE5_JOB_ID}" ]; then
+    echo "ERROR: Failed to submit Phase 5. Aborting."
+    exit 1
 fi
+echo "Phase 5 submitted (Job ID: ${PHASE5_JOB_ID})"
 
-# --- Phase 6: Normalization and Covariate Adjustment ---
-if [ -f "$PHASE6_FLAG" ]; then
-    echo "Phase 6 success flag found. Skipping submission."
-else
-    echo "Submitting Phase 6: Inverse Normal Transformation and Covariate Prep..."
-    
-    # Submit Phase 6, ensuring it runs only after Phase 5 has finished.
-    # Note: If Phase 5 was skipped (flag found), Phase 6 runs immediately.
-    JOBID_P6=$(sbatch --parsable --dependency=afterok:$JOBID_P5 ${PHASE6_SCRIPT})
-    if [ -z "$JOBID_P6" ]; then
-        echo "ERROR: Phase 6 submission failed."
-        exit 1
-    fi
-    echo "Phase 6 submitted with Job ID: $JOBID_P6. Waiting for completion..."
+# --- 2. Phase 6: Normalization and Covariate Merge ---
+echo "Submitting Phase 6: Normalization and Covariate Merge, dependent on Phase 5 success..."
+PHASE6_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE5_JOB_ID} ${PHASE6_SCRIPT})
 
-    # Use a loop to check for the success flag
-    while [ ! -f "$PHASE6_FLAG" ]; do
-        # Check job status
-        if ! squeue -j "$JOBID_P6" &> /dev/null; then
-            echo "ERROR: Phase 6 job $JOBID_P6 failed or completed without success flag. Check logs/ for details."
-            exit 1
-        fi
-        sleep 60 # Wait for 60 seconds before checking again
-    done
-    echo "Phase 6 completed successfully. Files are ready for FastQTL."
+if [ -z "${PHASE6_JOB_ID}" ]; then
+    echo "ERROR: Failed to submit Phase 6. Aborting."
+    exit 1
 fi
+echo "Phase 6 submitted (Job ID: ${PHASE6_JOB_ID}, Dependent on ${PHASE5_JOB_ID})"
 
-echo "--- Master edQTL Pipeline Finished ---"
+# --- 3. Phase 7: edQTL Association Mapping (FastQTL) ---
+echo "Submitting Phase 7: FastQTL Mapping, dependent on Phase 6 success..."
+PHASE7_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE6_JOB_ID} ${PHASE7_SCRIPT})
+
+if [ -z "${PHASE7_JOB_ID}" ]; then
+    echo "ERROR: Failed to submit Phase 7. Aborting."
+    exit 1
+fi
+echo "Phase 7 submitted (Job ID: ${PHASE7_JOB_ID}, Dependent on ${PHASE6_JOB_ID})"
+
+# --- 4. Phase 8: Multiple Testing Correction (Q-value Filtering) ---
+echo "Submitting Phase 8: FDR Correction and Lead SNP Identification, dependent on Phase 7 success..."
+PHASE8_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE7_JOB_ID} ${PHASE8_SCRIPT})
+
+if [ -z "${PHASE8_JOB_ID}" ]; then
+    echo "ERROR: Failed to submit Phase 8. Aborting."
+    exit 1
+fi
+echo "Phase 8 submitted (Job ID: ${PHASE8_JOB_ID}, Dependent on ${PHASE7_JOB_ID})"
+
+echo "--- All statistical pipeline jobs submitted successfully ---"
+echo "Final job chain: P5 (${PHASE5_JOB_ID}) -> P6 (${PHASE6_JOB_ID}) -> P7 (${PHASE7_JOB_ID}) -> P8 (${PHASE8_JOB_ID})"

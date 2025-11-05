@@ -24,10 +24,16 @@ The pipeline is organized into six distinct phases, ensuring data quality and st
 
 ### P1,Reference Setup,"Genome FASTA, GTF",Annotated Blacklists
 ### P2,Raw Calling,"∼6,000 individuals × 31 Cell Type BAMs","∼372,000 Raw Call Files (RED-ML & REDItools)"
+#### RED-ML: https://github.com/BGIRED/RED-ML
+#### REDITools: https://github.com/BioinfoUNIBA/REDItools3
 ### P3,Consensus & Annotation,P2 Raw Calls,Individual Consensus Matrix (Raw ERs + Annotation)
+#### REDIPortal: 04/11/25 http://srv00.recas.ba.infn.it/atlas/ MISSING!!!!
 ### P4,Final Filtering & QC,"P3 Matrix, Raw BAMs, Germline VCF",Final QC'd Editing Matrix (Known & UTR3 Sites)
 ### P5,Feature Selection,"P4 Final Matrices (6,000 files)",Population Feature Matrix (Most Active Site ERs)
 ### P6,Normalization & Prep,"P5 Feature Matrix, Covariate Files",Final FastQTL Phenotype Matrix (INT)
+### Association Mapping	P6 Phenotype & Covariates, Genotype VCF	Raw FastQTL Results (Nominal & Permutation P-values)
+### FDR Correction & Lead SNP ID	P7 Raw Results	Final Significant Lead edQTL List (Q-value < 0.05)
+
 
 # II. Quality Control (QC) Measures (Revised)
 
@@ -44,6 +50,7 @@ The final site list must satisfy all criteria, including those enforced at the i
 ### Data Reliability (Final),Final minimum Read Coverage ≥10 check during re-quantification.,P4,run_phase4_quantification_v3.py
 ### Population Bias,Inverse Normal Transformation (INT) to standardize phenotype distribution.,P6,normalize_and_covariate_phase6.py
 ### Hidden Variation,"Correction using multiple Covariates (PCs, PEER, AEI, Cell Props).",P6,normalize_and_covariate_phase6.py
+### Statistical FilteringFalse Discovery Rate (FDR) control using Q-value (FDR $\le 0.05$).P8process_fastqtl_results_p8.py
 
 # III. Pipeline Scripts and Core Tasks
 
@@ -62,6 +69,9 @@ The final site list must satisfy all criteria, including those enforced at the i
 ### Conceptual Step,Core Task,SLURM Wrapper,Python Script
 #### P5 Selection,"Collate ∼6,000 matrices and select the Most Active Site (highest median ER) per (Gene, CellType).",run_phase5_collation.sh,collate_and_select_phase5.py
 #### P6 Normalization,"Apply Inverse Normal Transformation (INT) row-wise and merge all covariates (PEER, PC, AEI, Cell Props).",run_phase6_processing.sh,normalize_and_covariate_phase6.py
+#### P7 Mapping Perform cis-edQTL association test using FastQTL with 1,000 permutations.run_phase7_edqtl_mapping.shFastQTL
+#### P8 FilteringCalculate Q-values (FDR) and filter for significant lead SNPs.run_phase8_qvalue_filter.sh process_fastqtl_results_p8.py
+
 
 # IV. Justification of Pipeline Decisions
 
@@ -88,3 +98,6 @@ The final site list must satisfy all criteria, including those enforced at the i
 
 #### P6: Inverse Normal Transformation (INT),"The raw editing ratios must be transformed to a standard, near-normal distribution to meet the assumptions of linear models used in edQTL software (like FastQTL).",Standard eQTL/edQTL Methodology
 #### P6: Covariates (PCs, AEI, PEER, Cell Props)","Including Genotype PCs and metrics of global ADAR activity (like the Alu Editing Index or AEI) is essential to regress out global editing variation, as ADAR1 expression is highly correlated with the top principal components of editing variance.","Li, Q., et al. (2022). Nature 608"
+#### P7: $\text{Cis-Window} (1\text{ Mb})$The $1\text{ Mb}$ cis-window size is a standard in QTL studies and aligns with the methodology used to discover thousands of edQTLs in human tissues.Li, Q., et al. (2022). Nature 608
+#### P7: Permutation TestingThe use of permutation testing (e.g., 1,000 permutations) is standard practice in QTL analysis to accurately derive empirical P-values, which correctly accounts for the number of genetic variants tested per feature in the cis-window.Standard eQTL/edQTL Methodology
+#### P8: FDR Correction (Q-value)Applying the Benjamini–Hochberg procedure to the empirical P-values is necessary to control the False Discovery Rate (FDR) across the millions of feature-SNP tests performed across all cell types, preventing the inflation of false positives.Standard eQTL/edQTL Methodology (Informed by Li, Q., et al. (2022))
