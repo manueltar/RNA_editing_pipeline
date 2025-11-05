@@ -5,7 +5,7 @@
 # that the feature selection (P5) completes before normalization (P6) begins.
 
 # --- Configuration ---
-PHASE5_SCRIPT="./run_phase5_collation.sh"
+PHASE5_SCRIPT="./run_phase5_collation_v2.sh"
 PHASE6_SCRIPT="./run_phase6_processing.sh"
 
 PHASE5_FLAG="./phase5_edQTL_features/phase5_success.flag"

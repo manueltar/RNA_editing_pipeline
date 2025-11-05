@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# SLURM wrapper for Phase 5: Collation and Feature Selection
+# This script executes the Python script to collate all individual data,
+# apply a sample size filter, and select the final edQTL features.
+
+# --- SLURM Directives ---
+# Set the job name
+#SBATCH --job-name=edQTL_P5_Collate
+# Set the output file path (%j is the job ID)
+#SBATCH --output=logs/phase5_collation_%j.out
+# Set the error file path
+#SBATCH --error=logs/phase5_collation_%j.err
+# Set the partition (adjust this based on your cluster)
+#SBATCH --partition=bigmem
+# Reserve sufficient memory (Crucial for large concatenation step)
+#SBATCH --mem=128G 
+# Set time limit
+#SBATCH --time=12:00:00
+
+# --- Configuration ---
+# Path to the Python script
+SCRIPT="./Python_scripts/collate_and_select_phase5_v2.py"
+
+# Input directory containing all Phase 4 output matrices
+INPUT_DIR="./phase4_final_quantification"
+FILE_PATTERN="*_final_editing_matrix_p4.tsv"
+
+# Output file path
+OUTPUT_FILE="./phase5_edQTL_features/edQTL_features_all_genes_all_celltypes_p5.tsv"
+
+# --- New Parameter: Sample Size Filter (Based on Li et al. 2022) ---
+MIN_SAMPLES=70 # Minimum number of non-missing samples required for a feature
+
+# --- Setup ---
+mkdir -p ./phase5_edQTL_features
+mkdir -p logs
+
+# Load necessary modules (adjust for your cluster environment)
+# module load python/3.9 anaconda/latest # Example modules
+
+# --- Execution ---
+echo "Starting Phase 5: Collation and Feature Selection"
+echo "Minimum Sample Filter (N): ${MIN_SAMPLES}"
+echo "Input Directory: ${INPUT_DIR}"
+echo "Output File: ${OUTPUT_FILE}"
+
+# Run the Python script
+python3 ${SCRIPT} \
+    --input_dir ${INPUT_DIR} \
+    --file_pattern "${FILE_PATTERN}" \
+    --output_file ${OUTPUT_FILE} \
+    --min_samples ${MIN_SAMPLES}
+
+# --- Success Flag ---
+if [ $? -eq 0 ]; then
+    echo "Phase 5 completed successfully."
+    touch "./phase5_edQTL_features/phase5_success.flag"
+else
+    echo "Phase 5 FAILED. Check logs for details."
+    exit 1
+fi

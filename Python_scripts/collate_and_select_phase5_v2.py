@@ -15,9 +15,12 @@ def run_phase5_collation_and_selection(args):
     """
     1. Loads all individual Phase 4 matrices.
     2. Collates them into a single population-level table (long format).
-    3. Performs the Representative Site selection (highest median raw ER) 
+    3. **APPLIES SAMPLE SIZE FILTER (N >= args.min_samples)**.
+    4. Performs the Representative Site selection (highest median raw ER) 
        for each unique (Gene, CellType) feature across the entire population.
     """
+    MIN_SAMPLES = args.min_samples # Now read from argparse
+    
     input_pattern = os.path.join(args.input_dir, args.file_pattern)
     input_files = glob.glob(input_pattern)
     
@@ -47,12 +50,11 @@ def run_phase5_collation_and_selection(args):
             metadata_cols = ['Phase3_Gene']
             
             # Convert the individual's wide table to long format
-            # This makes alignment across the population easier
             df_long = df_filtered[metadata_cols + er_cols].reset_index().melt(
                 id_vars=['SiteID', 'Phase3_Gene'], 
                 value_vars=er_cols, 
                 var_name='CellType_ER', 
-                value_name=individual_id # The column name is the Individual ID
+                value_name=individual_id
             )
             
             # Clean up and prepare the long format for merging
@@ -70,22 +72,32 @@ def run_phase5_collation_and_selection(args):
         print("No data successfully processed. Exiting.", file=sys.stderr)
         return
 
-    # Combine all long dataframes into one massive population matrix (Memory-intensive step)
-    # The result has columns = Individuals and index = (SiteID, Gene, CellType)
+    # Combine all long dataframes into one massive population matrix
     population_matrix_raw = pd.concat(all_data, axis=1)
     
     print(f"\n--- Collation Complete ---")
     print(f"Raw population matrix shape: {population_matrix_raw.shape}")
     
-    # 2. Population-Level Feature Selection (Li Strategy: Highest Median Raw ER)
+    # 2. **Sample Size Filter (NEW STEP)**
+    print(f"Applying Sample Size Filter: Keeping features with N >= {MIN_SAMPLES} samples...")
+    
+    # Count the number of non-missing values (samples) for each feature (row)
+    sample_counts = population_matrix_raw.notna().sum(axis=1)
+    
+    # Filter the matrix
+    population_matrix_filtered = population_matrix_raw[sample_counts >= MIN_SAMPLES]
+    
+    print(f"Filtered matrix shape (Features x Individuals): {population_matrix_filtered.shape}")
+
+    # 3. Population-Level Feature Selection (Li Strategy: Highest Median Raw ER)
     
     print("Performing feature selection: Highest median raw ER per (Gene, CellType)...")
     
-    # Calculate the median editing ratio across ALL individuals (axis=1) for each row (Site, Gene, CellType)
-    population_matrix_raw['Median_Raw_ER_Population'] = population_matrix_raw.median(axis=1)
+    # Calculate the median editing ratio across ALL individuals (axis=1) for each feature
+    population_matrix_filtered['Median_Raw_ER_Population'] = population_matrix_filtered.median(axis=1)
 
     # Reset index to access Gene and CellType columns for grouping
-    df_selection = population_matrix_raw.reset_index()
+    df_selection = population_matrix_filtered.reset_index()
 
     # Find the row index (idx) that has the maximum median within each (Gene, CellType) group
     idx_max = df_selection.groupby(['Phase3_Gene', 'CellType'])['Median_Raw_ER_Population'].idxmax()
@@ -93,7 +105,7 @@ def run_phase5_collation_and_selection(args):
     # Select the representative rows using these indices
     final_features_df = df_selection.loc[idx_max]
 
-    # --- 3. Final Matrix Restructuring ---
+    # --- 4. Final Matrix Restructuring ---
     
     # Create the final feature identifier (e.g., APP__Bcell)
     final_features_df['FeatureID'] = final_features_df['Phase3_Gene'] + '__' + final_features_df['CellType']
@@ -105,12 +117,12 @@ def run_phase5_collation_and_selection(args):
     final_edQTL_matrix = final_features_df.set_index('FeatureID')
     
     # The final edQTL matrix must have Features as rows and Individuals as columns (N_Features x N_Individuals)
-    final_edQTL_matrix = final_edQTL_matrix.T.T # Transpose twice to keep the structure clear
+    final_edQTL_matrix = final_edQTL_matrix.T.T
     
     # Ensure the index is named correctly
     final_edQTL_matrix.index.name = 'FeatureID'
 
-    # 4. Final Output
+    # 5. Final Output
     print(f"Final edQTL Feature Matrix shape (Features x Individuals): {final_edQTL_matrix.shape}")
     print(f"Saving final matrix to: {args.output_file}")
     
@@ -123,6 +135,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_dir", required=True, help="Directory containing all Phase 4 output matrices.")
     parser.add_argument("--file_pattern", default="*_final_editing_matrix_p4.tsv", help="File pattern to match Phase 4 matrices.")
     parser.add_argument("--output_file", required=True, help="Path to save the single, final edQTL feature matrix.")
+    parser.add_argument("--min_samples", type=int, required=True, help="Minimum number of non-missing samples required for a feature to be retained (e.g., 70).")
     args = parser.parse_args()
     
     try:
@@ -130,4 +143,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nFATAL UNCAUGHT ERROR in Phase 5 Collation: {e}", file=sys.stderr)
         sys.exit(1)
-
