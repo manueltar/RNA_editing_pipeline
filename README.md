@@ -28,7 +28,7 @@ The pipeline is organized into six distinct phases, ensuring data quality and st
 #### REDITools: https://github.com/BioinfoUNIBA/REDItools3
 ### P3,Consensus & Annotation,P2 Raw Calls,Individual Consensus Matrix (Raw ERs + Annotation)
 #### REDIPortal: 04/11/25 http://srv00.recas.ba.infn.it/atlas/ MISSING!!!!
-### P4,Final Filtering & QC,"P3 Matrix, Raw BAMs, Germline VCF",Final QC'd Editing Matrix (Known & UTR3 Sites)
+### P4,Final Filtering, QC ^ cleanup,"P3 Matrix, Raw BAMs, Germline VCF",Final QC'd Editing Matrix (Known & UTR3 Sites)
 ### P5,Feature Selection,"P4 Final Matrices (6,000 files)",Population Feature Matrix (Most Active Site ERs)
 ### P6,Normalization & Prep,"P5 Feature Matrix, Covariate Files",Final FastQTL Phenotype Matrix (INT)
 ### Association Mapping	P6 Phenotype & Covariates, Genotype VCF	Raw FastQTL Results (Nominal & Permutation P-values)
@@ -63,6 +63,7 @@ The final site list must satisfy all criteria, including those enforced at the i
 #### P2 Calling,Parallel A-to-I Calling (31 tasks per individual) with Strict QC enforced by REDItools.,call_red_ml_v3.sh / call_reditools_v4.sh,"RED-ML, REDItools3"
 #### P3 Consensus,"Aggregate raw calls, enforce Dual Consensus, annotate features.",03_phase3_master_site_discovery_v5.sh,run_phase3_individual_processing_v5.py
 #### P4 Filtering,"Final Filtering (Known/UTR3), Germline Exclusion, Re-quantification.",04_per_cell_type_quantification_and_filter_v3.sh,run_phase4_quantification_v3.py
+#### A final Cleanup Phase (run_cleanup_p1_p4.sh) was added as the last job in the 000_Wraper_v17.sh. This job is responsible for deleting large, unnecessary intermediate files (including RED-ML's variation.sites.feature.txt and mut.txt.gz) to preserve disk quota before the statistical pipeline begins.
 
 ## B. edQTL Statistical Pipeline (Master Script: master_edQTL_pipeline_v2.sh)
 
@@ -72,7 +73,7 @@ The final site list must satisfy all criteria, including those enforced at the i
 #### 6,run_phase6_processing_v2.sh,"Normalization & Covariate Merge. Applies INT to edQTL phenotypes. Merges all covariates (PCs, PEER, AEI).",→ P5 AND AEI-Calc
 #### 7,run_phase7_edqtl_mapping_v2.sh,edQTL Mapping (FastQTL). Maps variants to INT-normalized editing sites.,→ P6
 #### 7b,run_phase7b_aeiqtl_mapping.sh,AEI-QTL Mapping (FastQTL). Maps variants to the AEI covariate (runs parallel to P7).,→ P6
-#### 8,run_phase8_qvalue_filter_v2.sh,"FDR Correction. Performs combined Benjamini-Hochberg FDR correction on P7 and P7b results, and identifies lead SNPs.",→ P7 AND P7b
+#### 8,run_phase8_qvalue_filter_v2.sh,"FDR Correction. Performs combined Benjamini-Hochberg FDR correction on P7 and P7b results, and identifies lead SNPs.",→ P7 AND P7b. Phase 8 is configured with a dual dependency (afterok:P7_ID:P7B_ID) to ensure all results are available for a single, unified FDR correction, maintaining statistical rigor across both QTL analyses.
 
 # IV. Justification of Pipeline Decisions
 
