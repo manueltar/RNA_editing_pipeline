@@ -1,16 +1,16 @@
 #!/bin/bash
 #
 # MASTER SLURM WRAPPER: edQTL Statistical Pipeline (Phases 5 through 8)
-#
-# This script submits the sequential jobs necessary for feature selection, 
-# AEI covariate calculation, normalization, association mapping, and multiple testing correction.
+# V3: Adds Phase 7b for AEI-QTL mapping in parallel with Phase 7.
+#     Phase 8 is updated to depend on both P7 and P7b for combined FDR correction.
 
 # --- Configuration: Script Paths ---
-PHASE5_SCRIPT="./master_sbatch_scripts/run_phase5_collation.sh"
+PHASE5_SCRIPT="./master_sbatch_scripts/run_phase5_collation_v2.sh"
 AEI_SCRIPT="./master_sbatch_scripts/run_AEI_calculation_array.sh" 
-PHASE6_SCRIPT="./master_sbatch_scripts/run_phase6_processing.sh"
-PHASE7_SCRIPT="./master_sbatch_scripts/run_phase7_edqtl_mapping.sh"
-PHASE8_SCRIPT="./master_sbatch_scripts/run_phase8_qvalue_filter.sh"
+PHASE6_SCRIPT="./master_sbatch_scripts/run_phase6_processing_v2.sh"
+PHASE7_SCRIPT="./master_sbatch_scripts/run_phase7_edqtl_mapping_v2.sh"
+PHASE7B_SCRIPT="./master_sbatch_scripts/run_phase7b_aeiqtl_mapping.sh" 
+PHASE8_SCRIPT="./master_sbatch_scripts/run_phase8_qvalue_filter_v2.sh"
 
 # --- Setup ---
 echo "--- Starting Master edQTL Statistical Pipeline Submission ---"
@@ -29,7 +29,6 @@ echo "Phase 5 submitted (Job ID: ${PHASE5_JOB_ID})"
 
 # ----------------------------------------------------------------------
 # --- 2. AEI_calculation: Alu Editing Index (Covariate Generation) ---
-# This phase calculates the AEI matrix which is required by Phase 6.
 # Dependency: Runs after Phase 5 completes (proxy for pipeline stability).
 # ----------------------------------------------------------------------
 echo "Submitting AEI Calculation and Collation, dependent on Phase 5 success..."
@@ -55,10 +54,10 @@ fi
 echo "Phase 6 submitted (Job ID: ${PHASE6_JOB_ID}, Dependent on ${PHASE5_JOB_ID} and ${AEI_JOB_ID})"
 
 # ----------------------------------------------------------------------
-# --- 4. Phase 7: edQTL Association Mapping (FastQTL) ---
-# Dependency: Requires Phase 6 (INT-transformed phenotype and merged covariates).
+# --- 4. Phase 7 (edQTL) and Phase 7b (AEI-QTL) - PARALLEL MAPPING ---
+# Dependency: Both require Phase 6 to produce the input matrices.
 # ----------------------------------------------------------------------
-echo "Submitting Phase 7: FastQTL Mapping, dependent on Phase 6 success..."
+echo "Submitting Phase 7: edQTL Mapping, dependent on Phase 6 success..."
 PHASE7_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE6_JOB_ID} ${PHASE7_SCRIPT})
 
 if [ -z "${PHASE7_JOB_ID}" ]; then
@@ -67,18 +66,27 @@ if [ -z "${PHASE7_JOB_ID}" ]; then
 fi
 echo "Phase 7 submitted (Job ID: ${PHASE7_JOB_ID}, Dependent on ${PHASE6_JOB_ID})"
 
+echo "Submitting Phase 7b: AEI-QTL Mapping, dependent on Phase 6 success..."
+PHASE7B_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE6_JOB_ID} ${PHASE7B_SCRIPT})
+
+if [ -z "${PHASE7B_JOB_ID}" ]; then
+    echo "ERROR: Failed to submit Phase 7b. Aborting."
+    exit 1
+fi
+echo "Phase 7b submitted (Job ID: ${PHASE7B_JOB_ID}, Dependent on ${PHASE6_JOB_ID})"
+
 # ----------------------------------------------------------------------
 # --- 5. Phase 8: Multiple Testing Correction (Q-value Filtering) ---
-# Dependency: Requires Phase 7 (raw FastQTL permutation results).
+# Dependency: Requires BOTH Phase 7 (edQTL) and Phase 7b (AEI-QTL) to finish.
 # ----------------------------------------------------------------------
-echo "Submitting Phase 8: FDR Correction and Lead SNP Identification, dependent on Phase 7 success..."
-PHASE8_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE7_JOB_ID} ${PHASE8_SCRIPT})
+echo "Submitting Phase 8: FDR Correction and Lead SNP Identification, dependent on Phase 7 AND 7b success..."
+PHASE8_JOB_ID=$(sbatch --parsable --dependency=afterok:${PHASE7_JOB_ID}:${PHASE7B_JOB_ID} ${PHASE8_SCRIPT})
 
 if [ -z "${PHASE8_JOB_ID}" ]; then
     echo "ERROR: Failed to submit Phase 8. Aborting."
     exit 1
 fi
-echo "Phase 8 submitted (Job ID: ${PHASE8_JOB_ID}, Dependent on ${PHASE7_JOB_ID})"
+echo "Phase 8 submitted (Job ID: ${PHASE8_JOB_ID}, Dependent on ${PHASE7_JOB_ID} and ${PHASE7B_JOB_ID})"
 
 echo "--- All statistical pipeline jobs submitted successfully ---"
-echo "Final job chain: P5 (${PHASE5_JOB_ID}) & AEI (${AEI_JOB_ID}) -> P6 (${PHASE6_JOB_ID}) -> P7 (${PHASE7_JOB_ID}) -> P8 (${PHASE8_JOB_ID})"
+echo "Final job chain: P5 & AEI -> P6 -> P7 & P7b (Parallel) -> P8"
