@@ -2,6 +2,20 @@
 
 This pipeline is designed to robustly identify, quantify, filter, and normalize A-to-I RNA editing sites across 6,000 individuals and 31 cell types for expression quantitative trait locus (edQTL) mapping.
 
+### Overall Project Rationale (edQTL Importance)
+
+The decision to map edQTLs is strongly supported by the literature:
+
+
+Disease Relevance: edQTLs are highly enriched in GWAS signals for complex traits, particularly autoimmune and immune-related diseases (e.g., IBD, lupus, rheumatoid arthritis).
+
+
+Effect Size: edQTLs showed effects of larger magnitude than eQTLs or sQTLs in many contexts and were more enriched in disease heritability.
+
+
+Regulatory Mechanism: Genetic variants (edQTL SNPs) can alter editing levels by affecting ADAR-binding strength and the formation of RNA secondary structures (like cis-NATs), which are often immunogenic
+
+
 # I. Conceptual Pipeline Overview
 
 The pipeline is organized into six distinct phases, ensuring data quality and statistical rigor at every stage.
@@ -48,3 +62,29 @@ The final site list must satisfy all criteria, including those enforced at the i
 ### Conceptual Step,Core Task,SLURM Wrapper,Python Script
 #### P5 Selection,"Collate ∼6,000 matrices and select the Most Active Site (highest median ER) per (Gene, CellType).",run_phase5_collation.sh,collate_and_select_phase5.py
 #### P6 Normalization,"Apply Inverse Normal Transformation (INT) row-wise and merge all covariates (PEER, PC, AEI, Cell Props).",run_phase6_processing.sh,normalize_and_covariate_phase6.py
+
+# IV. Justification of Pipeline Decisions
+
+## Justification for Dual Callers and Initial QC (P2 & P3)
+
+### Pipeline Component,Literature Justification,Source
+
+#### P2: Dual Caller Approach (REDItools ∩ RED-ML),"Enforcing a consensus between multiple robust callers is a critical strategy to filter out sequencing artifacts and caller-specific errors, which is essential for discovering true ADAR editing sites with high confidence.","Wang, F., et al. (2023). BMC Biol. 21, 160."
+#### "P2: Strict Pre-Filtering (BaseQ ≥20, ReadQ ≥20, Min Edits ≥3)","Strict filtering by base quality, read quality, and minimum edited read count is explicitly required to distinguish true editing events from background noise and low-confidence candidates, a method championed by recent high-stringency studies.","Wang, F., et al. (2023). BMC Biol. 21, 160."
+#### P3: Allele Specificity (A > G or T > C),"Confining the analysis to the canonical A-to-I editing type is necessary, as non-canonical events are frequently indicative of sequencing artifacts or somatic mutations.",General RNA Editing Standards
+
+## Justification for Filtering and Site Selection (P1, P4, & P5)
+
+### Pipeline Component,Literature Justification,Source
+
+#### P1/P2: Blacklisting Repeats (Alu/Simple),More than 99% of human editing sites are located in inverted repeat Alu elements. General blacklisting controls for alignment ambiguity outside of these structured regions.,"Li, Q., et al. (2022). Nature 608"
+#### P4: Germline SNP Exclusion (VCF),Excluding candidate sites that overlap with known SNPs (MAF>1%) is standard practice to prevent misidentification of germline polymorphisms as novel RNA editing events.,"General Genomic QC Principles (Informed by SComatic, etc.)"
+#### P4: Known Sites AND 3' UTR Focus,"This decision is based on two key findings: 1) The validation ratio for annotated (Known) sites is significantly higher than unannotated sites (e.g., 38.5% vs. 7.3%). 2) The 3' UTR is a region known to be enriched in editing annotations and is critical for miRNA regulation.","Wang, F., et al. (2023). BMC Biol. 21, 160.; Gabay, O., et al. (2022). Nat Commun 13, 1184."
+#### P5: Most Active Site Selection,"Selecting the most actively edited site per gene/cell-type combination simplifies association testing while reliably capturing the locus's primary regulatory signal, as multiple editing sites are often co-regulated.","Li, Q., et al. (2022). Nature 608"
+
+## Justification for Normalization and Covariates (P6)
+
+### Pipeline Component,Literature Justification,Source
+
+#### P6: Inverse Normal Transformation (INT),"The raw editing ratios must be transformed to a standard, near-normal distribution to meet the assumptions of linear models used in edQTL software (like FastQTL).",Standard eQTL/edQTL Methodology
+#### P6: Covariates (PCs, AEI, PEER, Cell Props)","Including Genotype PCs and metrics of global ADAR activity (like the Alu Editing Index or AEI) is essential to regress out global editing variation, as ADAR1 expression is highly correlated with the top principal components of editing variance.","Li, Q., et al. (2022). Nature 608"
