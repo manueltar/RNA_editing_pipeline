@@ -66,12 +66,13 @@ The final site list must satisfy all criteria, including those enforced at the i
 
 ## B. edQTL Statistical Pipeline (Master Script: master_edQTL_pipeline_v2.sh)
 
-### Conceptual Step,Core Task,SLURM Wrapper,Python Script
-#### P5 Selection,"Collate ∼6,000 matrices and select the Most Active Site (highest median ER) per (Gene, CellType).",run_phase5_collation.sh,collate_and_select_phase5.py
-#### P6 Normalization,"Apply Inverse Normal Transformation (INT) row-wise and merge all covariates (PEER, PC, AEI, Cell Props).",run_phase6_processing.sh,normalize_and_covariate_phase6.py
-#### P7 Mapping Perform cis-edQTL association test using FastQTL with 1,000 permutations.run_phase7_edqtl_mapping.shFastQTL
-#### P8 FilteringCalculate Q-values (FDR) and filter for significant lead SNPs.run_phase8_qvalue_filter.sh process_fastqtl_results_p8.py
-
+### Phase,Script,Description,Dependencies
+#### 5,run_phase5_collation_v2.sh,Collates raw editing calls into the final phenotype matrix.,→ (None)
+#### AEI-Calc,run_AEI_calculation_array.sh,Calculates the raw AEI (Alu Editing Index) covariate.,→ P5
+#### 6,run_phase6_processing_v2.sh,"Normalization & Covariate Merge. Applies INT to edQTL phenotypes. Merges all covariates (PCs, PEER, AEI).",→ P5 AND AEI-Calc
+#### 7,run_phase7_edqtl_mapping_v2.sh,edQTL Mapping (FastQTL). Maps variants to INT-normalized editing sites.,→ P6
+#### 7b,run_phase7b_aeiqtl_mapping.sh,AEI-QTL Mapping (FastQTL). Maps variants to the AEI covariate (runs parallel to P7).,→ P6
+#### 8,run_phase8_qvalue_filter_v2.sh,"FDR Correction. Performs combined Benjamini-Hochberg FDR correction on P7 and P7b results, and identifies lead SNPs.",→ P7 AND P7b
 
 # IV. Justification of Pipeline Decisions
 
@@ -101,3 +102,13 @@ The final site list must satisfy all criteria, including those enforced at the i
 #### P7: $\text{Cis-Window} (1\text{ Mb})$The $1\text{ Mb}$ cis-window size is a standard in QTL studies and aligns with the methodology used to discover thousands of edQTLs in human tissues.Li, Q., et al. (2022). Nature 608
 #### P7: Permutation TestingThe use of permutation testing (e.g., 1,000 permutations) is standard practice in QTL analysis to accurately derive empirical P-values, which correctly accounts for the number of genetic variants tested per feature in the cis-window.Standard eQTL/edQTL Methodology
 #### P8: FDR Correction (Q-value)Applying the Benjamini–Hochberg procedure to the empirical P-values is necessary to control the False Discovery Rate (FDR) across the millions of feature-SNP tests performed across all cell types, preventing the inflation of false positives.Standard eQTL/edQTL Methodology (Informed by Li, Q., et al. (2022))
+
+# V original ideas:
+
+## 1. AEI-QTL Mapping (Phase 7b): 
+
+Novel Phenotype AnalysisThe most novel aspect is the decision to run a separate Quantitative Trait Loci (QTL) study using the Alu Editing Index (AEI) as the phenotype.Rationale: The AEI is a genome-wide metric of overall ADAR enzymatic activity. By mapping genetic variants to this metric, you are looking for trans-acting regulators—genes or pathways other than ADAR1 or ADAR2—that influence the global scale of RNA editing.Originality: While Li et al. (2022) focus on finding edQTLs (variants affecting specific editing sites), they do not report this systematic attempt to find AEI-QTLs. This analysis provides a unique insight into the upstream genetic control of ADAR activity, which is highly relevant to common inflammatory diseases mentioned in the literature.
+
+## 2. Rigorous Handling of the AEI (Methodological Refinement)
+
+While not strictly an original idea, your pipeline's design rigorously addresses a methodological challenge explicitly raised in the Li et al. (2022) introduction:Context from Li et al. (2022)Your Pipeline Implementation"...the reduced editing of immunogenic dsRNAs leads to interferon responses, which may subsequently induce expression of ADAR1 and affect the overall editing levels..."Phase 6: AEI as a Covariate. By including the AEI as a covariate in the primary edQTL model, you statistically decouple the specific variant-site association from the global, systemic effects of ADAR induction (like those caused by an IFN response). This ensures your edQTL results are more precise and less confounded by changes in ADAR expression.
