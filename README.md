@@ -72,7 +72,7 @@ The final site list must satisfy all criteria, including those enforced at the i
 #### AEI-Calc,run_AEI_calculation_array.sh,Calculates the raw AEI (Alu Editing Index) covariate.,→ P5
 #### 6,run_phase6_processing_v2.sh,"Normalization & Covariate Merge. Applies INT to edQTL phenotypes. Merges all covariates (PCs, PEER, AEI).",→ P5 AND AEI-Calc
 #### 7,run_phase7_edqtl_mapping_v2.sh,edQTL Mapping (FastQTL). Maps variants to INT-normalized editing sites.,→ P6
-#### 7b,run_phase7b_aeiqtl_mapping.sh,AEI-QTL Mapping (FastQTL). Maps variants to the AEI covariate (runs parallel to P7).,→ P6
+#### 7b,run_phase7b_aeiqtl_mapping_v3.sh,AEI-QTL Mapping (FastQTL). Maps variants to the AEI covariate as a trans-effect (runs parallel to P7).,→ P6
 #### 8,run_phase8_qvalue_filter_v2.sh,"FDR Correction. Performs combined Benjamini-Hochberg FDR correction on P7 and P7b results, and identifies lead SNPs.",→ P7 AND P7b. Phase 8 is configured with a dual dependency (afterok:P7_ID:P7B_ID) to ensure all results are available for a single, unified FDR correction, maintaining statistical rigor across both QTL analyses.
 
 # IV. Justification of Pipeline Decisions
@@ -109,6 +109,8 @@ The final site list must satisfy all criteria, including those enforced at the i
 ## 1. AEI-QTL Mapping (Phase 7b): 
 
 Novel Phenotype AnalysisThe most novel aspect is the decision to run a separate Quantitative Trait Loci (QTL) study using the Alu Editing Index (AEI) as the phenotype.Rationale: The AEI is a genome-wide metric of overall ADAR enzymatic activity. By mapping genetic variants to this metric, you are looking for trans-acting regulators—genes or pathways other than ADAR1 or ADAR2—that influence the global scale of RNA editing.Originality: While Li et al. (2022) focus on finding edQTLs (variants affecting specific editing sites), they do not report this systematic attempt to find AEI-QTLs. This analysis provides a unique insight into the upstream genetic control of ADAR activity, which is highly relevant to common inflammatory diseases mentioned in the literature.
+
+Check https://www.youtube.com/watch?v=I1Na06UdW-E
 
 ## 2. Rigorous Handling of the AEI (Methodological Refinement)
 

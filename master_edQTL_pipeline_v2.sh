@@ -9,7 +9,7 @@ PHASE5_SCRIPT="./master_sbatch_scripts/run_phase5_collation_v2.sh"
 AEI_SCRIPT="./master_sbatch_scripts/run_AEI_calculation_array.sh" 
 PHASE6_SCRIPT="./master_sbatch_scripts/run_phase6_processing_v2.sh"
 PHASE7_SCRIPT="./master_sbatch_scripts/run_phase7_edqtl_mapping_v2.sh"
-PHASE7B_SCRIPT="./master_sbatch_scripts/run_phase7b_aeiqtl_mapping.sh" 
+PHASE7B_SCRIPT="./master_sbatch_scripts/run_phase7b_aeiqtl_mapping_v3.sh" 
 PHASE8_SCRIPT="./master_sbatch_scripts/run_phase8_qvalue_filter_v2.sh"
 
 # --- Setup ---
