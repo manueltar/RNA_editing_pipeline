@@ -115,3 +115,10 @@ Check https://www.youtube.com/watch?v=I1Na06UdW-E
 ## 2. Rigorous Handling of the AEI (Methodological Refinement)
 
 While not strictly an original idea, your pipeline's design rigorously addresses a methodological challenge explicitly raised in the Li et al. (2022) introduction:Context from Li et al. (2022)Your Pipeline Implementation"...the reduced editing of immunogenic dsRNAs leads to interferon responses, which may subsequently induce expression of ADAR1 and affect the overall editing levels..."Phase 6: AEI as a Covariate. By including the AEI as a covariate in the primary edQTL model, you statistically decouple the specific variant-site association from the global, systemic effects of ADAR induction (like those caused by an IFN response). This ensures your edQTL results are more precise and less confounded by changes in ADAR expression.
+
+## New database repository
+
+https://github.com/TrinityCTAT/ctat-genome-lib-builder/wiki
+https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/MUTATION_LIB_SUPPLEMENT/rna_editing/
+
+$ wget https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/MUTATION_LIB_SUPPLEMENT/rna_editing/GRCh38.RNAediting.vcf.gz
